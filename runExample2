@@ -1,0 +1,3 @@
+#!/bin/bash
+
+gcc -Wall -pthread example2.c -o example2 && chmod +x example2 && ./example2
