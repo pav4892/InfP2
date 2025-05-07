@@ -24,7 +24,7 @@ int main(){
     pthread_create(&threadA, NULL, &example_fct, NULL);
     pthread_create(&threadB, NULL, &example_fct, NULL);
 
-    /* Warte auf Beendigung der beiden Threads */
+    /* Warte auf Beendigung der beiden Threads  */
     pthread_join(threadA, NULL);
     pthread_join(threadB, NULL);
 
