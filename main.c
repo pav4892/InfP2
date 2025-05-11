@@ -3,44 +3,39 @@
 #include <stdint.h>
 #include <string.h>
 
+#define MAX_STUDENT_NAME_LENGTH 100
+
+typedef struct studentName {
+  char studentName[MAX_STUDENT_NAME_LENGTH];
+  uintptr_t studentNameLength;
+} studentName;
 
 /* Thread-Funktion */
-void *example_fct(void *args){
+  void *studentNameLengthSetterThread(void *args){
   /* Die Übergabe wird zurück auf einen int-Pointer gecastet*/
-  char * inParam = (char *)args;
+  studentName * inStudentStruct = (studentName *)args;
 
-  uintptr_t inParamLength = strlen(inParam);
+  inStudentStruct->studentNameLength = strlen(inStudentStruct->studentName);
 
-  /* Der Inhalt des Pointers wird ausgegeben */
-  printf("Infos von Main: %s has %ld chars\n", inParam, inParamLength); 
-
-  return (void *)inParamLength; //Thread gibt info an main zurueck
+  return (void *)(inStudentStruct->studentNameLength); //Thread gibt info an main zurueck
 }
 
 int main(){
   /* Lege ein Thread-Handle, einen Übergabe- und einen Rückgabeparameter an */
   pthread_t thread;
-  uintptr_t threadRetParam = -1;
-  uint16_t MAX_STUDENT_NAME_LENGTH = 100;
-
-  typedef struct studentName {
-    char studentName[MAX_STUDENT_NAME_LENGTH];
-    uint16_t studentNameLength;
-  } studentName;
+  uintptr_t threadRetParam = -1; 
 
   studentName myStudentName;
 
   strncpy(myStudentName.studentName, "Patrick", MAX_STUDENT_NAME_LENGTH);
   
-  /* Starte einen Thread mit der auszuführenden Funktion example_fct. Zudem wir ein Parameter übergeben. Konfigurations-Parameter werden nicht gesetzt, daher NULL. */
-  pthread_create(&thread, NULL, &example_fct, myStudentName.studentName); // Main gibt infos(threadParam) an thread. The difference here is only the last paramter threadParam that is given to the thread, besides that its only a normal thread
+  /* Starte einen Thread mit der auszuführenden Funktion studentNameLengthSetterThread. Zudem wird ein Parameter übergeben. Konfigurations-Parameter(Hier die Memory addresse des structs) werden nicht gesetzt, daher NULL. */
+  pthread_create(&thread, NULL, &studentNameLengthSetterThread, &myStudentName); // Main gibt infos(threadParam) an thread. The difference here is only the last paramter threadParam that is given to the thread, besides that its only a normal thread
 
-  /* Warte auf Beendigung des Threads */
+  /* Warte auf Beendigung des Threads. Right now we just ignore/don't use this return value but it contains the calcualted studentNameLength*/
   pthread_join(thread, (void *)(&threadRetParam)); // Return Wert des Threads wird bei Beendigung des Threads in der Variable `threadRetParam` gespeichert
-  myStudentName.studentNameLength = threadRetParam;
 
-  /* Inhalt des Rückgabeparameters ausgeben */
-  printf("Rueckgabe von Thread: %lu\n", threadRetParam);
+  printf("Der Student heisst %s und sein Name hat %ld Zeichen(berechnet und gesetzt in einem seperatem Thread)", myStudentName.studentName, myStudentName.studentNameLength);
 
   return 0;
 }
