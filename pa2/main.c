@@ -9,15 +9,15 @@ typedef struct rangeForMultiThreadingStruct {
 
 void *threadCalcSpeedup(void *args) {
 
-  int collatzFolgenLaenge = 1; // starts at 1 because the inital value of 11 is part of the Folge
+  int collatzFolgenLaenge = 0; // starts at 1 because the inital value of 11 is part of the Folge
 
   rangeForMultiThreadingStruct * inRangeForMultiThreadingStruct = (rangeForMultiThreadingStruct *)args;
 
   printf("------------------\nI am a thread and currently working on range: %d-%d\n", inRangeForMultiThreadingStruct->startRange,inRangeForMultiThreadingStruct->endRange);
   
-  int x = inRangeForMultiThreadingStruct->endRange;
+  int x = inRangeForMultiThreadingStruct->startRange;
   
-  for(int i = inRangeForMultiThreadingStruct->startRange; i <= inRangeForMultiThreadingStruct->endRange; i++) {
+  for(int i = 0; i <= inRangeForMultiThreadingStruct->endRange; i++) {
     while(x > 1) {
       if(x % 2 == 0) {
         x = x / 2;
@@ -26,11 +26,9 @@ void *threadCalcSpeedup(void *args) {
       }
       collatzFolgenLaenge += 1;
     }
+    printf("Collatz-Length: %d\n--------------------", collatzFolgenLaenge);
   }
   
-
-  printf("Collatz-Length: %d\n--------------------", collatzFolgenLaenge);
-
   return (void *)inRangeForMultiThreadingStruct;
 
 };
