@@ -35,7 +35,7 @@ int main() {
   // Goal, Calculate Collatz-Folge for every value from 1-100.000.000
  
   int maxValueCollatz = 100000000;
-  //int maxValueCollatz = 10000;
+  //int maxValueCollatz = 10000;  
   int threads = 100;
   int rangeSize = maxValueCollatz/threads;
   int rangeStepCounter = 0;
