@@ -9,15 +9,13 @@ typedef struct rangeForMultiThreadingStruct {
 
 void *threadCalcSpeedup(void *args) {
 
-  int collatzFolgenLaenge = 0; // starts at 1 because the inital value of 11 is part of the Folge
-
   rangeForMultiThreadingStruct * inRangeForMultiThreadingStruct = (rangeForMultiThreadingStruct *)args;
 
   printf("------------------\nI am a thread and currently working on range: %d-%d\n", inRangeForMultiThreadingStruct->startRange,inRangeForMultiThreadingStruct->endRange);
-  
-  int x = inRangeForMultiThreadingStruct->startRange;
-  
-//  for(int x = inRangeForMultiThreadingStruct->startRange; x <= inRangeForMultiThreadingStruct->endRange; x++) {
+   
+  for(int y = inRangeForMultiThreadingStruct->startRange; y <= inRangeForMultiThreadingStruct->endRange; y++) {
+    int collatzFolgenLaenge = 0; // starts at 1 because the inital value of 11 is part of the Folge
+    int x = y;
     while(x > 1) {
       if(x % 2 == 0) {
         x = x / 2;
@@ -25,9 +23,9 @@ void *threadCalcSpeedup(void *args) {
         x = 3 * x + 1;
       }
       collatzFolgenLaenge += 1;
-    }
-    printf("Wert: %d --> Collatz-Length: %d\n--------------------", inRangeForMultiThreadingStruct->startRange, collatzFolgenLaenge);
- // }
+    } 
+    printf("Wert: %d --> Collatz-Length: %d\n--------------------", y, collatzFolgenLaenge);
+  }
   
   return (void *)inRangeForMultiThreadingStruct;
 
@@ -37,6 +35,7 @@ int main() {
   // Goal, Calculate Collatz-Folge for every value from 1-100.000.000
  
   int maxValueCollatz = 100000000;
+  //int maxValueCollatz = 10000;
   int threads = 100;
   int rangeSize = maxValueCollatz/threads;
   int rangeStepCounter = 0;
