@@ -17,7 +17,7 @@ void *threadCalcSpeedup(void *args) {
   
   int x = inRangeForMultiThreadingStruct->startRange;
   
-  for(int i = 0; i <= inRangeForMultiThreadingStruct->endRange; i++) {
+//  for(int x = inRangeForMultiThreadingStruct->startRange; x <= inRangeForMultiThreadingStruct->endRange; x++) {
     while(x > 1) {
       if(x % 2 == 0) {
         x = x / 2;
@@ -26,8 +26,8 @@ void *threadCalcSpeedup(void *args) {
       }
       collatzFolgenLaenge += 1;
     }
-    printf("Collatz-Length: %d\n--------------------", collatzFolgenLaenge);
-  }
+    printf("Wert: %d --> Collatz-Length: %d\n--------------------", inRangeForMultiThreadingStruct->startRange, collatzFolgenLaenge);
+ // }
   
   return (void *)inRangeForMultiThreadingStruct;
 
