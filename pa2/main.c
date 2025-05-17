@@ -113,7 +113,11 @@ void parallelCalc() {
  
     currentRange[i].startRange = rangeStepCounter + minValueCollatz;
     rangeStepCounter += rangeSize;                  // Fucking kill me wtf is this code
-    currentRange[i].endRange = rangeStepCounter;
+    if(i == threads - 1) {                          // Need to to a seperate treatment because with ints you cant evenly distribute every number for every amount of threads, so we just give the last thread the rest
+      currentRange[i].endRange = maxValueCollatz;
+    } else {
+      currentRange[i].endRange = rangeStepCounter;
+    }
 
     pthread_create(&thread[i], NULL, &threadCalcSpeedup, &currentRange[i]); // Create a new thread and pass the fitting range to it 
   }
@@ -124,7 +128,8 @@ void parallelCalc() {
     clock_gettime(CLOCK_REALTIME, &tsThread[i]);
     timeAfterRunThreads[i] = tsThread[i].tv_sec;
     timeAfterRunThreadsNanos[i] = tsThread[i].tv_nsec; // This will NOT get the nanos since epoch but instead get the nanos of the current second and it overflows and loops araound again after each second so we have to do math
-    printf("Thread %d finished after %f seconds\n", i, ((timeAfterRunThreads[i]+(timeAfterRunThreadsNanos[i]/1e9))-(timeBeforeRunThreads[i]+(timeBeforeRunThreadsNanos[i]/1e9))));
+    printf("Thread %d finished after %f seconds and calculated the collatz sequence for the range: %d-%d - (%d iterations)\n", i, ((timeAfterRunThreads[i]+(timeAfterRunThreadsNanos[i]/1e9))-(timeBeforeRunThreads[i]+(timeBeforeRunThreadsNanos[i]/1e9))), currentRange[i].startRange, currentRange[i].endRange, currentRange[i].endRange - currentRange[i].startRange);
+
   }
 
   clock_gettime(CLOCK_REALTIME, &ts);
