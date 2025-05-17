@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <time.h>
 
+float tSeq;
+float tPar;
+
 typedef struct rangeForMultiThreadingStruct {
   int startRange;
   int endRange;
@@ -38,12 +41,15 @@ void sequentialCalc() {
  
   int timeBeforeRun;
   int timeAfterRun;
+  int timeBeforeRunNanos;
+  int timeAfterRunNanos;
 
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   timeBeforeRun = ts.tv_sec;
+  timeBeforeRunNanos = ts.tv_nsec;
 
-  for(int i = 0; i <= 100000000; i++) {
+  for(int i = 1; i <= 100000000; i++) {
     int x=i;
     int collatzFolgenLaenge = 0;
     while(x > 1) {
@@ -61,7 +67,11 @@ void sequentialCalc() {
 
   clock_gettime(CLOCK_REALTIME, &ts);
   timeAfterRun = ts.tv_sec;
-  printf("Took about %d seconds\n------------------------------------\n\n", (timeAfterRun-timeBeforeRun));
+  timeAfterRunNanos = ts.tv_nsec;
+
+  tSeq = (timeAfterRun-timeBeforeRun)+((timeBeforeRunNanos-timeAfterRunNanos)/1e9);
+
+  printf("----> Took %f seconds\n------------------------------------\n\n", tSeq);
 
 };
 
@@ -70,10 +80,13 @@ void parallelCalc() {
 
   int timeBeforeRun;
   int timeAfterRun;
+  int timeBeforeRunNanos;
+  int timeAfterRunNanos;
 
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   timeBeforeRun = ts.tv_sec;
+  timeBeforeRunNanos = ts.tv_nsec;
 
   int minValueCollatz = 1;
   int maxValueCollatz = 100000000;
@@ -88,11 +101,15 @@ void parallelCalc() {
 
   int timeBeforeRunThreads[threads];
   int timeAfterRunThreads[threads];
+  float timeBeforeRunThreadsNanos[threads];
+  float timeAfterRunThreadsNanos[threads];
+
 
   for(int i = 0; i < threads; i++) {
     struct timespec tsThread[threads];
     clock_gettime(CLOCK_REALTIME, &tsThread[i]);
     timeBeforeRunThreads[i] = tsThread[i].tv_sec;
+    timeBeforeRunThreadsNanos[i] = tsThread[i].tv_nsec; // This will NOT get the nanos since epoch but instead get the nanos of the current second and it overflows and loops araound again after each second so we have to do math
  
     currentRange[i].startRange = rangeStepCounter + minValueCollatz;
     rangeStepCounter += rangeSize;                  // Fucking kill me wtf is this code
@@ -106,19 +123,22 @@ void parallelCalc() {
     pthread_join(thread[i], (void *)(&threadRetParam)); 
     clock_gettime(CLOCK_REALTIME, &tsThread[i]);
     timeAfterRunThreads[i] = tsThread[i].tv_sec;
-    printf("Thread %d took %d seconds\n",i, (timeAfterRunThreads[i]-timeBeforeRunThreads[i]));
+    timeAfterRunThreadsNanos[i] = tsThread[i].tv_nsec; // This will NOT get the nanos since epoch but instead get the nanos of the current second and it overflows and loops araound again after each second so we have to do math
+    printf("Thread %d finished after %f seconds\n", i, ((timeAfterRunThreads[i]+(timeAfterRunThreadsNanos[i]/1e9))-(timeBeforeRunThreads[i]+(timeBeforeRunThreadsNanos[i]/1e9))));
   }
 
   clock_gettime(CLOCK_REALTIME, &ts);
   timeAfterRun = ts.tv_sec;
-  printf("Took about %d seconds\n------------------------------------\n", (timeAfterRun-timeBeforeRun));
+  timeAfterRunNanos = ts.tv_nsec;
+  tPar = (timeAfterRun-timeBeforeRun)+((timeAfterRunNanos-timeBeforeRunNanos)/1e9);
+  printf("\n\n----> Took %f seconds\n------------------------------------\n", tPar);
   
 }
 
 int main() {
 
   // Goal, Calculate Collatz-Folge for every value from 1-100.000.000
-
+  
   // Sequentiell
 
   sequentialCalc();  // -- works
@@ -126,6 +146,8 @@ int main() {
   // Parallel
 
   parallelCalc(); // time measurment is done on a thread level
+
+  printf("\n\nSpeed-up factor: %f", tSeq/tPar);
   
   return 0;
 }
