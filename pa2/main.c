@@ -27,7 +27,7 @@ void *threadCalcSpeedup(void *args) {
       collatzFolgenLaenge += 1;
     } 
 
-    //printf("Wert: %d --> Collatz-Length: %d\n", y, collatzFolgenLaenge);        //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement
+    //printf("Wert: %d --> Collatz-Length: %d\n", y, collatzFolgenLaenge);        //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement 
   }
   
   return (void *)inRangeForMultiThreadingStruct;
