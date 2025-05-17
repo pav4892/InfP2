@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <time.h>
 
+int minValueCollatz = 1;
+int maxValueCollatz = 100000000;
+
 float tSeq;
 float tPar;
 
@@ -10,6 +13,13 @@ typedef struct rangeForMultiThreadingStruct {
   int startRange;
   int endRange;
 } rangeForMultiThreadingStruct;
+
+typedef struct startWertLaengsteFolgePaarStruct {
+  int startWert;
+  int laengeFolge;
+} startWertLaengsteFolgePaarStruct;
+
+startWertLaengsteFolgePaarStruct myStartWertLaengsteFolgePaarStruct;
 
 void *threadCalcSpeedup(void *args) {
 
@@ -49,7 +59,7 @@ void sequentialCalc() {
   timeBeforeRun = ts.tv_sec;
   timeBeforeRunNanos = ts.tv_nsec;
 
-  for(int i = 1; i <= 100000000; i++) {
+  for(int i = minValueCollatz; i <= maxValueCollatz; i++) {
     int x=i;
     int collatzFolgenLaenge = 0;
     while(x > 1) {
@@ -62,6 +72,12 @@ void sequentialCalc() {
       collatzFolgenLaenge += 1;
     }
 
+    if(collatzFolgenLaenge > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
+      myStartWertLaengsteFolgePaarStruct.startWert = i;
+      myStartWertLaengsteFolgePaarStruct.laengeFolge = collatzFolgenLaenge;
+
+    };
+
     //printf("Wert: %d --> Collatz-Length: %d\n", i, collatzFolgenLaenge);    //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement
   }
 
@@ -69,14 +85,13 @@ void sequentialCalc() {
   timeAfterRun = ts.tv_sec;
   timeAfterRunNanos = ts.tv_nsec;
 
-  tSeq = (timeAfterRun-timeBeforeRun)+((timeBeforeRunNanos-timeAfterRunNanos)/1e9);
+  tSeq = (timeAfterRun-timeBeforeRun)+((timeAfterRunNanos-timeBeforeRunNanos)/1e9);
 
   printf("----> Took %f seconds\n------------------------------------\n\n", tSeq);
 
 };
 
 void parallelCalc() {
-
 
   int timeBeforeRun;
   int timeAfterRun;
@@ -88,11 +103,9 @@ void parallelCalc() {
   timeBeforeRun = ts.tv_sec;
   timeBeforeRunNanos = ts.tv_nsec;
 
-  int minValueCollatz = 1;
-  int maxValueCollatz = 100000000;
   int threads = 16;
   int rangeSize = (maxValueCollatz-minValueCollatz)/threads;
-  int rangeStepCounter = 0;
+  int rangeStepCounter = minValueCollatz - 1;
   pthread_t thread[threads];
   uintptr_t threadRetParam = -1;
   rangeForMultiThreadingStruct currentRange[threads];
@@ -111,7 +124,7 @@ void parallelCalc() {
     timeBeforeRunThreads[i] = tsThread[i].tv_sec;
     timeBeforeRunThreadsNanos[i] = tsThread[i].tv_nsec; // This will NOT get the nanos since epoch but instead get the nanos of the current second and it overflows and loops araound again after each second so we have to do math
  
-    currentRange[i].startRange = rangeStepCounter + minValueCollatz;
+    currentRange[i].startRange = rangeStepCounter + 1;
     rangeStepCounter += rangeSize;                  // Fucking kill me wtf is this code
     if(i == threads - 1) {                          // Need to to a seperate treatment because with ints you cant evenly distribute every number for every amount of threads, so we just give the last thread the rest
       currentRange[i].endRange = maxValueCollatz;
@@ -143,6 +156,10 @@ void parallelCalc() {
 int main() {
 
   // Goal, Calculate Collatz-Folge for every value from 1-100.000.000
+  
+  myStartWertLaengsteFolgePaarStruct.startWert = 0;
+  myStartWertLaengsteFolgePaarStruct.laengeFolge = 0;
+
   
   // Sequentiell
 
