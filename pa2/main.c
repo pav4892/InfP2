@@ -3,20 +3,24 @@
 #include <stdint.h>
 #include <time.h>
 
-int minValueCollatz = 1;
-int maxValueCollatz = 100000000;
+// Range of collatz-calculations that should be done
+
+long long minValueCollatz = 1;          // long long because for example values like 63728127 can scale up to almost a trillion which overflows regular ints and fucks everything up: https://www.dcode.fr/collatz-conjecture
+long long maxValueCollatz = 100000000;  // long long is a bit overkill but whatever, just be save and performance isn't too important because it's the relation in which the performance stands between each other that matters
+
+// Time measuremnt of sequentiell and parallel methods
 
 float tSeq;
 float tPar;
 
 typedef struct rangeForMultiThreadingStruct {
-  int startRange;
-  int endRange;
+  long long startRange;
+  long long endRange;
 } rangeForMultiThreadingStruct;
 
 typedef struct startWertLaengsteFolgePaarStruct {
-  int startWert;
-  int laengeFolge;
+  long long startWert;
+  long long laengeFolge;
 } startWertLaengsteFolgePaarStruct;
 
 startWertLaengsteFolgePaarStruct myStartWertLaengsteFolgePaarStruct;
@@ -25,9 +29,9 @@ void *threadCalcSpeedup(void *args) {
 
   rangeForMultiThreadingStruct * inRangeForMultiThreadingStruct = (rangeForMultiThreadingStruct *)args;
 
-  for(int y = inRangeForMultiThreadingStruct->startRange; y <= inRangeForMultiThreadingStruct->endRange; y++) {
-    int collatzFolgenLaenge = 0;
-    int x = y;
+  for(long long y = inRangeForMultiThreadingStruct->startRange; y <= inRangeForMultiThreadingStruct->endRange; y++) {
+    long long collatzFolgenLaenge = 0;
+    long long x = y;
     while(x > 1) {
       if(x % 2 == 0) {
         x = x / 2;
@@ -37,7 +41,12 @@ void *threadCalcSpeedup(void *args) {
       collatzFolgenLaenge += 1;
     } 
 
-    //printf("Wert: %d --> Collatz-Length: %d\n", y, collatzFolgenLaenge);        //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement 
+    if(collatzFolgenLaenge > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
+      myStartWertLaengsteFolgePaarStruct.startWert = y;
+      myStartWertLaengsteFolgePaarStruct.laengeFolge = collatzFolgenLaenge;
+    }
+
+    //printf("Wert: %lld --> Collatz-Length: %lld\n", y, collatzFolgenLaenge);        //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement 
   }
   
   return (void *)inRangeForMultiThreadingStruct;
@@ -59,9 +68,9 @@ void sequentialCalc() {
   timeBeforeRun = ts.tv_sec;
   timeBeforeRunNanos = ts.tv_nsec;
 
-  for(int i = minValueCollatz; i <= maxValueCollatz; i++) {
-    int x=i;
-    int collatzFolgenLaenge = 0;
+  for(long long i = minValueCollatz; i <= maxValueCollatz; i++) {
+    long long x = i;
+    long long collatzFolgenLaenge = 0;
     while(x > 1) {
       if(x % 2 == 0) {
         x = x / 2;
@@ -70,15 +79,14 @@ void sequentialCalc() {
       };
 
       collatzFolgenLaenge += 1;
-    }
+    };
 
     if(collatzFolgenLaenge > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
       myStartWertLaengsteFolgePaarStruct.startWert = i;
       myStartWertLaengsteFolgePaarStruct.laengeFolge = collatzFolgenLaenge;
-
     };
 
-    //printf("Wert: %d --> Collatz-Length: %d\n", i, collatzFolgenLaenge);    //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement
+    //printf("Wert: %lld --> Collatz-Length: %lld\n", i, collatzFolgenLaenge);    //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement
   }
 
   clock_gettime(CLOCK_REALTIME, &ts);
@@ -141,7 +149,7 @@ void parallelCalc() {
     clock_gettime(CLOCK_REALTIME, &tsThread[i]);
     timeAfterRunThreads[i] = tsThread[i].tv_sec;
     timeAfterRunThreadsNanos[i] = tsThread[i].tv_nsec; // This will NOT get the nanos since epoch but instead get the nanos of the current second and it overflows and loops araound again after each second so we have to do math
-    printf("Thread %d finished after %f seconds and calculated the collatz sequence for the range: %d-%d - (%d iterations)\n", i, ((timeAfterRunThreads[i]+(timeAfterRunThreadsNanos[i]/1e9))-(timeBeforeRunThreads[i]+(timeBeforeRunThreadsNanos[i]/1e9))), currentRange[i].startRange, currentRange[i].endRange, currentRange[i].endRange - currentRange[i].startRange);
+    printf("Thread %d finished after %f seconds and calculated the collatz sequence for the range: %lld-%lld - (%lld iterations)\n", i, ((timeAfterRunThreads[i]+(timeAfterRunThreadsNanos[i]/1e9))-(timeBeforeRunThreads[i]+(timeBeforeRunThreadsNanos[i]/1e9))), currentRange[i].startRange, currentRange[i].endRange, currentRange[i].endRange - currentRange[i].startRange);
 
   }
 
@@ -169,7 +177,8 @@ int main() {
 
   parallelCalc(); // time measurment is done on a thread level
 
-  printf("\n\nSpeed-up factor: %f", tSeq/tPar);
+  printf("\n\nSpeed-up factor: %f\n\n", tSeq/tPar);
+  printf("Die laengste Collatz-Folge(%lld-%lld) ist %lld lang und wird durch den Startwert %lld erzeugt", minValueCollatz, maxValueCollatz, myStartWertLaengsteFolgePaarStruct.laengeFolge, myStartWertLaengsteFolgePaarStruct.startWert);
   
   return 0;
 }
