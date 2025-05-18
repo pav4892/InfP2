@@ -168,8 +168,6 @@ void speedupDiagram() {
   int timeBeforeRunNanos;
   int timeAfterRunNanos;
 
-  float diagramY_speedup[16];
-
   printf("\n\n------------------------------------\n\nRunning Calcualtion of Speedup values for 2-16 threads and creating Diagram\n\n");
 
   for(int threads = 2; threads <= 16; threads++) {
@@ -220,30 +218,8 @@ void speedupDiagram() {
     timeAfterRun = ts.tv_sec;
     timeAfterRunNanos = ts.tv_nsec;
     tPar = (timeAfterRun-timeBeforeRun)+((timeAfterRunNanos-timeBeforeRunNanos)/1e9);
-
-    diagramY_speedup[threads] = tSeq/tPar;
-
     printf("----> %d Threads: Took %f seconds - Speedup: %f\n", threads, tPar, tSeq/tPar);
   }; 
-
-  int diagramX_threads[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}; 
-
-
-    double x[] = {1, 2, 3, 4, 5};
-    double y[] = {1, 4, 9, 16, 25};
-
-  FILE *gnuplot = popen("gnuplot -persistent", "w");  // Calls the linux package `gnuplot` via bash call
-  
-  fprintf(gnuplot, "plot '-' with lines\n"); // Draws the points and connects them with a line through all of themn. frptintf passes it to the process I give it
-  
-  for (int i = 0; i < 16; i++) {
-    printf("\n%lf - %lf\n", diagramX_threads[i], diagramY_speedup[i]);
-    fprintf(gnuplot, "%lf %lf\n", diagramX_threads[i], diagramY_speedup[i]);
-  };
-
-  fprintf(gnuplot, "e\n");
-
-  pclose(gnuplot); // end process
 };
 
 int main() {
