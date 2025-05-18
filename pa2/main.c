@@ -111,7 +111,7 @@ void parallelCalc() {
   timeBeforeRun = ts.tv_sec;
   timeBeforeRunNanos = ts.tv_nsec;
 
-  int threads = 8;
+  int threads = 16;
   int rangeSize = (maxValueCollatz-minValueCollatz)/threads;
   int rangeStepCounter = minValueCollatz - 1;
   pthread_t thread[threads];
