@@ -111,7 +111,7 @@ void parallelCalc() {
   timeBeforeRun = ts.tv_sec;
   timeBeforeRunNanos = ts.tv_nsec;
 
-  int threads = 16;
+  int threads = 8;
   int rangeSize = (maxValueCollatz-minValueCollatz)/threads;
   int rangeStepCounter = minValueCollatz - 1;
   pthread_t thread[threads];
@@ -228,8 +228,11 @@ void speedupDiagram() {
 
   FILE *gnuplot = popen("gnuplot -persistent", "w");  // Calls the linux package `gnuplot` via bash call
   
-  fprintf(gnuplot, "plot '-' with lines\n"); // Draws the points and connects them with a line through all of themn. frptintf passes it to the process I give it
+  fprintf(gnuplot, "set xlabel 'Threads'\n");
+  fprintf(gnuplot, "set ylabel 'Speedup'\n");
+
   
+  fprintf(gnuplot, "plot '-' with lines\n"); // Draws the points and connects them with a line through all of themn. frptintf passes it to the process I give it
   int diagramX_threads[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}; 
 
   for (int i = 0; i < 15; i++) {
