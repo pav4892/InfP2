@@ -226,19 +226,14 @@ void speedupDiagram() {
     printf("----> %d Threads: Took %f seconds - Speedup: %f\n", threads, tPar, tSeq/tPar);
   }; 
 
-  int diagramX_threads[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}; 
-
-
-    double x[] = {1, 2, 3, 4, 5};
-    double y[] = {1, 4, 9, 16, 25};
-
   FILE *gnuplot = popen("gnuplot -persistent", "w");  // Calls the linux package `gnuplot` via bash call
   
   fprintf(gnuplot, "plot '-' with lines\n"); // Draws the points and connects them with a line through all of themn. frptintf passes it to the process I give it
   
-  for (int i = 0; i < 16; i++) {
-    printf("\n%lf - %lf\n", diagramX_threads[i], diagramY_speedup[i]);
-    fprintf(gnuplot, "%lf %lf\n", diagramX_threads[i], diagramY_speedup[i]);
+  int diagramX_threads[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}; 
+
+  for (int i = 0; i < 15; i++) {
+    fprintf(gnuplot, "%d %f\n", diagramX_threads[i], diagramY_speedup[i+2]);
   };
 
   fprintf(gnuplot, "e\n");
