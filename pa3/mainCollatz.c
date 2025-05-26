@@ -2,11 +2,14 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <time.h>
+#include <stdatomic.h>
 
 // Range of collatz-calculations that should be done
 
 long long minValueCollatz = 1;          // long long because for example values like 63728127 can scale up to almost a trillion which overflows regular ints and fucks everything up: https://www.dcode.fr/collatz-conjecture
 long long maxValueCollatz = 100000000;  // long long is a bit overkill but whatever, just be save and performance isn't too important because it's the relation in which the performance stands between each other that matters
+
+long long collatzSum = 0;
 
 // Time measuremnt of sequentiell and parallel methods
 
@@ -40,6 +43,9 @@ void *threadCalcSpeedup(void *args) {
       }
       collatzFolgenLaenge += 1;
     } 
+
+    //atomic_fetch_add(&collatzSum, collatzFolgenLaenge);   // Remove this for non-atomic unsafe add
+    collatzSum += collatzFolgenLaenge;                  // Add this for unsafe add
 
     if(collatzFolgenLaenge > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
       myStartWertLaengsteFolgePaarStruct.startWert = y;
@@ -262,6 +268,10 @@ int main() {
   
   printf("\n\nSpeed-up factor: %f\n\n", tSeq/tPar);
   printf("Die laengste Collatz-Folge(%lld-%lld) ist %lld lang und wird durch den Startwert %lld erzeugt\n", minValueCollatz, maxValueCollatz, myStartWertLaengsteFolgePaarStruct.laengeFolge, myStartWertLaengsteFolgePaarStruct.startWert);
+
+  printf("\nCollatz-Summe: %llu\n", collatzSum);
+
+  speedupDiagram();
 
   speedupDiagram();
   

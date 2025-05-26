@@ -1,0 +1,235 @@
+#include <stdio.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <time.h>
+#include <pthread.h>
+#include <stdatomic.h>
+
+int threadsAmount = 16;
+pthread_mutex_t myMutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Range of collatz-calculations that should be done
+
+const unsigned long long minValueCollatz = 1;          // long long because for example values like 63728127 can scale up to almost a trillion which overflows regular ints and fucks everything up: https://www.dcode.fr/collatz-conjecture
+unsigned long long maxValueCollatz = 100000000;  // long long is a bit overkill but whatever, just be save and performance isn't too important because it's the relation in which the performance stands between each other that matters
+
+unsigned long long currentCollatzValue = minValueCollatz;
+unsigned long long collatzSum = 0;
+
+// Time measuremnt of sequentiell and parallel methods
+
+float tSeq;
+float tPar;
+
+void *unsafeThreadCalcSpeedup(void *args) {
+
+  while(currentCollatzValue < maxValueCollatz) {
+    
+    unsigned long long collatzFolgenLaenge = 0;
+
+    unsigned long long x = currentCollatzValue;
+
+    while(x > 1) {
+      if(x % 2 == 0) {
+        x = x / 2;
+      } else {
+        x = 3 * x + 1;
+      };
+      collatzFolgenLaenge += 1;
+    };
+
+    collatzSum += collatzFolgenLaenge;
+
+    //printf("%llu: %llu\n", currentCollatzValue, collatzSum);
+
+    currentCollatzValue += 1;
+
+  };
+};
+
+/*
+void *safeMutexThreadCalcSpeedup(void *args) {
+
+  while(currentCollatzValue < maxValueCollatz) {
+    
+
+    unsigned long long collatzFolgenLaenge = 0;
+
+    unsigned long long x = currentCollatzValue;
+
+    while(x > 1) {
+      if(x % 2 == 0) {
+        x = x / 2;
+      } else {
+        x = 3 * x + 1;
+      };
+      collatzFolgenLaenge += 1;
+    };
+
+    collatzSum += collatzFolgenLaenge;
+
+    //printf("%llu: %llu\n", currentCollatzValue, collatzSum);
+
+    currentCollatzValue += 1;
+
+  };
+};
+*/
+void *safeMutexThreadCalcSpeedup(void *args) {
+
+  while(currentCollatzValue < maxValueCollatz) {
+    
+    unsigned long long collatzFolgenLaenge = 0;
+    unsigned long long x;
+
+    pthread_mutex_lock(&myMutex);
+    x = currentCollatzValue;
+    currentCollatzValue += 1;
+    pthread_mutex_unlock(&myMutex);
+
+    while(x > 1) {
+      if(x % 2 == 0) {
+        x = x / 2;
+      } else {
+        x = 3 * x + 1;
+      };
+      collatzFolgenLaenge += 1;
+    };
+
+    pthread_mutex_lock(&myMutex);
+    collatzSum += collatzFolgenLaenge;
+    pthread_mutex_unlock(&myMutex);
+
+    //printf("%llu: %llu\n", currentCollatzValue, collatzSum);
+
+  };
+};
+
+void *safeAtomicThreadCalcSpeedup(void *args) {
+
+  while(currentCollatzValue < maxValueCollatz) {
+    
+    unsigned long long collatzFolgenLaenge = 0;
+
+    unsigned long long x = currentCollatzValue;
+
+    while(x > 1) {
+      if(x % 2 == 0) {
+        x = x / 2;
+      } else {
+        x = 3 * x + 1;
+      };
+      collatzFolgenLaenge += 1;
+    };
+
+    atomic_fetch_add(collatzSum, collatzFolgenLaenge);
+
+    //printf("%llu: %llu\n", currentCollatzValue, collatzSum);
+
+    atomic_fetch_add(currentCollatzValue, 1);
+  };
+};
+
+
+
+void parallelCollatzSum(int mode) {
+
+  currentCollatzValue = minValueCollatz;
+  collatzSum = 0;
+
+  int timeBeforeRun;
+  int timeAfterRun;
+  int timeBeforeRunNanos;
+  int timeAfterRunNanos;
+
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  timeBeforeRun = ts.tv_sec;
+  timeBeforeRunNanos = ts.tv_nsec;
+
+  int threads = threadsAmount;
+
+  pthread_t thread[threads];
+  uintptr_t threadRetParam = -1;
+
+  int timeBeforeRunThreads[threads];
+  int timeAfterRunThreads[threads];
+  float timeBeforeRunThreadsNanos[threads];
+  float timeAfterRunThreadsNanos[threads];
+
+
+  for(int i = 0; i < threads; i++) {
+    struct timespec tsThread[threads];
+    clock_gettime(CLOCK_REALTIME, &tsThread[i]);
+    timeBeforeRunThreads[i] = tsThread[i].tv_sec;
+    timeBeforeRunThreadsNanos[i] = tsThread[i].tv_nsec; // This will NOT get the nanos since epoch but instead get the nanos of the current second and it overflows and loops araound again after each second so we have to do math
+ 
+    switch(mode) {
+      case 0:
+        pthread_create(&thread[i], NULL, &unsafeThreadCalcSpeedup, NULL); // Create a new thread and pass the fitting range to it 
+        break;
+      case 1:
+        pthread_create(&thread[i], NULL, &safeMutexThreadCalcSpeedup, NULL); // Create a new thread and pass the fitting range to it 
+        break;
+      case 2:
+        pthread_create(&thread[i], NULL, &safeAtomicThreadCalcSpeedup, NULL); // Create a new thread and pass the fitting range to it 
+        break;
+
+
+    }
+  }
+
+  for(int i = 0; i < threads; i++) {
+    struct timespec tsThread[threads];
+    pthread_join(thread[i], (void *)(&threadRetParam)); 
+    clock_gettime(CLOCK_REALTIME, &tsThread[i]);
+    timeAfterRunThreads[i] = tsThread[i].tv_sec;
+    timeAfterRunThreadsNanos[i] = tsThread[i].tv_nsec; // This will NOT get the nanos since epoch but instead get the nanos of the current second and it overflows and loops araound again after each second so we have to do math
+  }
+
+  clock_gettime(CLOCK_REALTIME, &ts);
+  timeAfterRun = ts.tv_sec;
+  timeAfterRunNanos = ts.tv_nsec;
+  tPar = (timeAfterRun-timeBeforeRun)+((timeAfterRunNanos-timeBeforeRunNanos)/1e9);
+  printf("\n\n----> Took %f seconds\n", tPar);
+  
+};
+
+int main() {
+
+  printf("\n------------------------------\n\nUNSAFELY Summing up Collatz-Length from range %d-%d using %d threads\n", minValueCollatz, maxValueCollatz, threadsAmount);
+
+	parallelCollatzSum(0);
+  printf("----> Collatz Sum, first run: %llu\n", collatzSum);
+
+	parallelCollatzSum(0);
+  printf("----> Collatz Sum, second run: %llu\n", collatzSum);
+
+	parallelCollatzSum(0);
+  printf("----> Collatz Sum, third run: %llu\n", collatzSum);
+
+
+  printf("\n------------------------------\n\nSAFELY(Mutex) Summing up Collatz-Length from range %d-%d using %d threads\n", minValueCollatz, maxValueCollatz, threadsAmount);
+
+	parallelCollatzSum(1);
+  printf("----> Collatz Sum, first run: %llu\n", collatzSum);
+
+	parallelCollatzSum(1);
+  printf("----> Collatz Sum, second run: %llu\n", collatzSum);
+
+	parallelCollatzSum(1);
+  printf("----> Collatz Sum, third run: %llu\n", collatzSum);
+
+  printf("\n------------------------------\n\nSAFELY(Atomic) Summing up Collatz-Length from range %d-%d using %d threads\n", minValueCollatz, maxValueCollatz, threadsAmount);
+
+	parallelCollatzSum(2);
+  printf("----> Collatz Sum, first run: %llu\n", collatzSum);
+
+	parallelCollatzSum(2);
+  printf("----> Collatz Sum, second run: %llu\n", collatzSum);
+
+	parallelCollatzSum(2);
+  printf("----> Collatz Sum, third run: %llu\n", collatzSum);
+
+  return 0;
+}

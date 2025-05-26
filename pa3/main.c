@@ -11,6 +11,7 @@ typedef struct argsStruct {    // Need a struct because we want to pass more tha
 int counter = 0;
 
 pthread_mutex_t myMutex = PTHREAD_MUTEX_INITIALIZER;
+sem_t mySemaphore;
 
 void *unsafeCounterThreadFunc(void *args) {
   argsStruct * myArgsStruct = (argsStruct *)args;
@@ -37,9 +38,9 @@ void *safeSemaphoreCounterThreadFunc(void *args) {
   int iterations = myArgsStruct->iterations;
 
   for(int i = 0; i < iterations; i++) {
-    pthread_mutex_lock(&myMutex);
+    sem_wait(&mySemaphore);
     counter += myArgsStruct->counterChangeDirection;
-    pthread_mutex_unlock(&myMutex);
+    sem_post(&mySemaphore);
   };
 };
 
@@ -81,6 +82,7 @@ int main() {
 
   counter = 0;
 
+  sem_init(&mySemaphore, 0, 1);  // , Processintern, startvalue: 1   | DO NOT PLACE THIS INSIDE OF THE THREAD FUNCTION IT WILL BREAK IDK WHY
   printf("Safe Counter Change using Semaphore: ");
   multiThreadCounterChange(safeSemaphoreCounterThreadFunc);
 
