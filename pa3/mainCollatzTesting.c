@@ -4,12 +4,15 @@
 #include <time.h>
 #include <stdatomic.h>
 
+pthread_mutex_t myMutex = PTHREAD_MUTEX_INITIALIZER;
+
 // Range of collatz-calculations that should be done
 
 long long minValueCollatz = 1;          // long long because for example values like 63728127 can scale up to almost a trillion which overflows regular ints and fucks everything up: https://www.dcode.fr/collatz-conjecture
 long long maxValueCollatz = 100000000;  // long long is a bit overkill but whatever, just be save and performance isn't too important because it's the relation in which the performance stands between each other that matters
 
 long long collatzSum = 0;
+long long currentCollatzValue = 0;
 
 // Time measuremnt of sequentiell and parallel methods
 
@@ -29,35 +32,40 @@ typedef struct startWertLaengsteFolgePaarStruct {
 startWertLaengsteFolgePaarStruct myStartWertLaengsteFolgePaarStruct;
 
 void *threadCalcSpeedup(void *args) {
+    long long myValue;
 
-  rangeForMultiThreadingStruct * inRangeForMultiThreadingStruct = (rangeForMultiThreadingStruct *)args;
+    while (1) {
+        // Protect fetching and incrementing the shared counter
+        pthread_mutex_lock(&myMutex);
+        if (currentCollatzValue >= maxValueCollatz) {
+            pthread_mutex_unlock(&myMutex);
+            break;
+        }
+        myValue = currentCollatzValue++;
+        pthread_mutex_unlock(&myMutex);
 
-  for(long long y = inRangeForMultiThreadingStruct->startRange; y <= inRangeForMultiThreadingStruct->endRange; y++) {
-    long long collatzFolgenLaenge = 0;
-    long long x = y;
-    while(x > 1) {
-      if(x % 2 == 0) {
-        x = x / 2;
-      } else {
-        x = 3 * x + 1;
-      }
-      collatzFolgenLaenge += 1;
-    } 
+        // Now compute the collatz sequence
+        long long x = myValue;
+        long long collatzLength = 0;
+        while (x > 1) {
+            if (x % 2 == 0) x = x / 2;
+            else x = 3 * x + 1;
+            collatzLength++;
+        }
 
-    atomic_fetch_add(&collatzSum, collatzFolgenLaenge);   // Remove this for non-atomic unsafe add
-    //collatzSum += collatzFolgenLaenge;                      // Add this for unsafe add
+        atomic_fetch_add(&collatzSum, collatzLength);  // atomic is fine here
 
-    if(collatzFolgenLaenge > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
-      myStartWertLaengsteFolgePaarStruct.startWert = y;
-      myStartWertLaengsteFolgePaarStruct.laengeFolge = collatzFolgenLaenge;
+        // Protect shared struct update
+        pthread_mutex_lock(&myMutex);
+        if (collatzLength > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
+            myStartWertLaengsteFolgePaarStruct.startWert = myValue;
+            myStartWertLaengsteFolgePaarStruct.laengeFolge = collatzLength;
+        }
+        pthread_mutex_unlock(&myMutex);
     }
 
-    //printf("Wert: %lld --> Collatz-Length: %lld\n", y, collatzFolgenLaenge);        //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement 
-  }
-  
-  return (void *)inRangeForMultiThreadingStruct;
-
-};
+    return NULL;
+}
 
 void sequentialCalc() {
 
@@ -101,7 +109,7 @@ void sequentialCalc() {
   timeAfterRun = ts.tv_sec;
   timeAfterRunNanos = ts.tv_nsec;
 
-  tSeq = (timeAfterRun-timeBeforeRun)+((timeAfterRunNanos-timeBeforeRunNanos)/1e9);
+  tSeq = (timeAfterRun-timeBeforeRun) + ((timeAfterRunNanos-timeBeforeRunNanos)/1e9);
 
   printf("\nCollatz-Summe: %llu\n\n", collatzSum);
 
@@ -276,7 +284,7 @@ int main() {
 
   printf("\nCollatz-Summe: %llu\n", collatzSum);
 
-  speedupDiagram();
+  //speedupDiagram();
 
   return 0;
 }

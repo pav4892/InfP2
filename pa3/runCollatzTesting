@@ -1,0 +1,3 @@
+#!/bin/bash
+
+gcc -pthread mainCollatzTesting.c -o mainCollatzTesting && chmod +x mainCollatzTesting && ./mainCollatzTesting
