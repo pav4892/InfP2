@@ -87,6 +87,8 @@ void sequentialCalc() {
       collatzFolgenLaenge += 1;
     };
 
+    collatzSum += collatzFolgenLaenge;                  // Sequentiel code so no risk
+
     if(collatzFolgenLaenge > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
       myStartWertLaengsteFolgePaarStruct.startWert = i;
       myStartWertLaengsteFolgePaarStruct.laengeFolge = collatzFolgenLaenge;
@@ -100,6 +102,8 @@ void sequentialCalc() {
   timeAfterRunNanos = ts.tv_nsec;
 
   tSeq = (timeAfterRun-timeBeforeRun)+((timeAfterRunNanos-timeBeforeRunNanos)/1e9);
+
+  printf("\nCollatz-Summe: %llu\n\n", collatzSum);
 
   printf("----> Took %f seconds\n------------------------------------\n\n", tSeq);
 
@@ -176,7 +180,7 @@ void speedupDiagram() {
 
   float diagramY_speedup[24];
 
-  printf("\n\n------------------------------------\n\nRunning Calcualtion of Speedup values for 2-16 threads and creating Diagram\n\n");
+  printf("\n\n------------------------------------\n\nRunning Calcualtion of Speedup values for 2-24 threads and creating Diagram\n\n");
 
   for(int threads = 2; threads <= 24; threads++) {
 
@@ -257,10 +261,11 @@ int main() {
   myStartWertLaengsteFolgePaarStruct.startWert = 0;
   myStartWertLaengsteFolgePaarStruct.laengeFolge = 0;
 
-  
   // Sequentiell
 
   sequentialCalc();  // -- works
+  
+  collatzSum = 0;
 
   // Parallel
 
@@ -273,7 +278,5 @@ int main() {
 
   speedupDiagram();
 
-  speedupDiagram();
-  
   return 0;
 }
