@@ -288,7 +288,7 @@ int main() {
 
   printf("\nCollatz-Summe: %llu\n", collatzSum);
 
-  speedupDiagram();
+  speedupDiagram(); // 2-3 max but intended
 
   return 0;
 }
