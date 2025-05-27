@@ -44,13 +44,14 @@ void *threadCalcSpeedup(void *args) {
       collatzFolgenLaenge += 1;
     } 
 
-    atomic_fetch_add(&collatzSum, collatzFolgenLaenge);   // Remove this for non-atomic unsafe add
+    atomic_fetch_add(&collatzSum, collatzFolgenLaenge);       // Remove this for non-atomic unsafe add
     //collatzSum += collatzFolgenLaenge;                      // Add this for unsafe add
 
+    //lokale maxsumme oder mutex
     if(collatzFolgenLaenge > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
       myStartWertLaengsteFolgePaarStruct.startWert = y;
       myStartWertLaengsteFolgePaarStruct.laengeFolge = collatzFolgenLaenge;
-    }
+    };
 
     //printf("Wert: %lld --> Collatz-Length: %lld\n", y, collatzFolgenLaenge);        //optionale Ausgabe -- stdout is bottleneck in speed so don't do this for time measurement 
   }

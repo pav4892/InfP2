@@ -35,27 +35,29 @@ void *threadCalcSpeedup(void *args) {
     long long myValue;
 
     while (1) {
-        // Protect fetching and incrementing the shared counter
         pthread_mutex_lock(&myMutex);
-        if (currentCollatzValue >= maxValueCollatz) {
+        if (currentCollatzValue > maxValueCollatz) { // kill in case val > val 
             pthread_mutex_unlock(&myMutex);
             break;
         }
         myValue = currentCollatzValue++;
         pthread_mutex_unlock(&myMutex);
 
-        // Now compute the collatz sequence
         long long x = myValue;
         long long collatzLength = 0;
-        while (x > 1) {
-            if (x % 2 == 0) x = x / 2;
-            else x = 3 * x + 1;
-            collatzLength++;
-        }
+        long long collatzFolgenLaenge = 0;
 
-        atomic_fetch_add(&collatzSum, collatzLength);  // atomic is fine here
+        while(x > 1) {
+          if(x % 2 == 0) {
+            x = x / 2;
+          } else {
+            x = 3 * x + 1;
+          }
+          collatzLength++;
+        } 
 
-        // Protect shared struct update
+        atomic_fetch_add(&collatzSum, collatzLength);
+
         pthread_mutex_lock(&myMutex);
         if (collatzLength > myStartWertLaengsteFolgePaarStruct.laengeFolge) {
             myStartWertLaengsteFolgePaarStruct.startWert = myValue;
@@ -66,6 +68,7 @@ void *threadCalcSpeedup(void *args) {
 
     return NULL;
 }
+
 
 void sequentialCalc() {
 
@@ -210,6 +213,7 @@ void speedupDiagram() {
 
 
     for(int i = 0; i < threads; i++) {
+      currentCollatzValue = 0;
       struct timespec tsThread[threads];
       clock_gettime(CLOCK_REALTIME, &tsThread[i]);
       timeBeforeRunThreads[i] = tsThread[i].tv_sec;
@@ -284,7 +288,7 @@ int main() {
 
   printf("\nCollatz-Summe: %llu\n", collatzSum);
 
-  //speedupDiagram();
+  speedupDiagram();
 
   return 0;
 }
