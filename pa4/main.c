@@ -205,9 +205,13 @@ void parallelCalc() {
   // The linked list here is used as the shared buffer between the producer and consumer threads and I think that the PRODUCER has to fill it with random numbers and the CONSUMER has to use and then delete
   // The CONSUMER uses(or at least prints(know for sure) ) the random numbers it gets from the PRODUCER by doing some collatz stuff.
   // The functions to add and remove are the regular linked list function I have already implemented above
+  
+  //End goal(I think): Create a random number pass it to the producer thread(Make it accessible for consumer) that does the sum up for checksum. Then the consumer function takes that random number and does
+  //the collatz-stuff and sum up for checksum. ALl this somehow synchronised via semaphore stuff(the linked list ig??)
 
   // Create a pre-defined amount of producer- and consumer threads. The producer thread creates random numbers and the consumer thread receives them. Sum up these random numbers in the producer and consumer and check if equal.
   // This equal check also has to be stress-tested with 50 producers(each ) and 30 consumers
+  
   
   for(int i = 0; i < amountProducerFunctionThreads; i++) {
     pthread_t producerThread; 
