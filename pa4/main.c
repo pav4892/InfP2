@@ -4,6 +4,10 @@
 #include <pthread.h>
 #include <time.h>
 #include <stdatomic.h>
+#include <semaphore.h>
+
+pthread_mutex_t myMutex1 = PTHREAD_MUTEX_INITIALIZER;
+sem_t full;
 
 // Range of collatz-calculations that should be done
 
@@ -16,7 +20,6 @@ long long collatzSum = 0;
 
 float tSeq;
 float tPar;
-
 
 int currentNodeAmount = 0;
 
@@ -34,6 +37,20 @@ typedef struct startWertLaengsteFolgePaarStruct {
   long long startWert;
   long long laengeFolge;
 } startWertLaengsteFolgePaarStruct;
+
+
+// ----------------------------------- Linked List code(start) -------------------------------
+
+node * head = NULL;
+node * current = NULL;
+
+// ----------------------------------- Linked List code(end) ---------------------------------
+
+_Atomic long long producerSum = 0;
+_Atomic long long consumerSum = 0;
+
+int globalRandomNumberArray[50];
+int globalRandomNumberArrayIndex = 0;
 
 startWertLaengsteFolgePaarStruct myStartWertLaengsteFolgePaarStruct;
 
@@ -69,20 +86,9 @@ void *threadCalcSpeedup(void *args) {
 
 };
 
-void printList(node * head) {
-  printf("List: ");
-
-  node * current = head;
-  while (current != NULL) {
-    printf("%d -> ", current->myInt);
-    current = current->next;
-  }
-  printf("NULL\n");
-}
-
 node * addElementAtStart(node * headPre, int value) {
   
-  currentNodeAmount += 1;
+  atomic_fetch_add(&currentNodeAmount, 1);
 
   node * newNode = malloc(sizeof(node));
   newNode->myInt = value;
@@ -92,7 +98,7 @@ node * addElementAtStart(node * headPre, int value) {
 
 void removeTail(node * head) {
 
-  currentNodeAmount -= 1;
+  atomic_fetch_sub(&currentNodeAmount, 1);
 
   node * currHead;
   while(head->next != NULL) {
@@ -105,13 +111,38 @@ void removeTail(node * head) {
 
 };
 
-void * producerFunction(void * args) {
 
-};
+void * producerFunction(void * args) {
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts); 
+  srand(ts.tv_nsec);
+  long long randomNumber = 5;
+
+  pthread_mutex_lock(&myMutex1);
+  globalRandomNumberArray[globalRandomNumberArrayIndex] = randomNumber;
+  atomic_fetch_add(&globalRandomNumberArrayIndex, 1);
+  atomic_fetch_add(&producerSum, randomNumber);
+  head = addElementAtStart(head, randomNumber);
+  pthread_mutex_unlock(&myMutex1);
+
+  sem_post(&full);  // Notify consumers
+}
+
 
 void * consumerFunction(void * args) {
+  sem_wait(&full);  // Wait for an item to be available
 
-};
+  pthread_mutex_lock(&myMutex1);
+
+  long long randomNumber;
+
+  randomNumber = head->myInt;
+  head = head->next;
+
+  atomic_fetch_add(&consumerSum, randomNumber);
+  pthread_mutex_unlock(&myMutex1);
+}
+
 
 void sequentialCalc() {
 
@@ -165,62 +196,40 @@ void sequentialCalc() {
 
 void parallelCalc() {
 
-  int amountProducerFunctionThreads = 0;
-  int amountConsumerFunctionThreads = 0;
+  sem_init(&full, 0, 0);
 
-  // ----------------------------------- Linked List code(start) -------------------------------
-
-  struct timespec ts;
-  clock_gettime(CLOCK_REALTIME, &ts); 
-
-  srand(ts.tv_nsec); // Initialize random number generator with current amount of nanos since last second
-
-  int nodesAmount = 16;
-
-  node * head = NULL;
-  node * current = NULL;
-
-  for(int i = 0; i < nodesAmount; i++) {
-
-    currentNodeAmount += 1; 
-
-    node * newNode = malloc(sizeof(node));
-    newNode->myInt = rand();
-    newNode->next = NULL;
-
-    if(head == NULL) {
-      head = newNode;
-    } else {
-      current->next = newNode;
-    };
-
-    current = newNode; 
-  };
-
-  head = addElementAtStart(head, 100); // add a new element at the beginning ( replace the first element )
-  removeTail(head); // remove last element 
-  
-  // ----------------------------------- Linked List code(end) -------------------------------
+  // Create a pre-defined amount of producer- and consumer threads. The producer thread creates random numbers and the consumer thread receives them. Sum up these random numbers in the producer and consumer and check if equal.
+  // We check by summing up the random numbers before and after writing them to linked list. This equal check also has to be stress-tested with 50 producers(each Calculating 10000) and 30 consumers
+ 
+  int amountProducerFunctionThreads = 50;
+  int amountConsumerFunctionThreads = 30;
 
   // The linked list here is used as the shared buffer between the producer and consumer threads and I think that the PRODUCER has to fill it with random numbers and the CONSUMER has to use and then delete
   // The CONSUMER uses(or at least prints(know for sure) ) the random numbers it gets from the PRODUCER by doing some collatz stuff.
   // The functions to add and remove are the regular linked list function I have already implemented above
   
   //End goal(I think): Create a random number pass it to the producer thread(Make it accessible for consumer) that does the sum up for checksum. Then the consumer function takes that random number and does
-  //the collatz-stuff and sum up for checksum. ALl this somehow synchronised via semaphore stuff(the linked list ig??)
-
-  // Create a pre-defined amount of producer- and consumer threads. The producer thread creates random numbers and the consumer thread receives them. Sum up these random numbers in the producer and consumer and check if equal.
-  // This equal check also has to be stress-tested with 50 producers(each ) and 30 consumers
+  //the collatz-stuff and sum up for checksum. ALl this somehow synchronised via semaphore stuff(the linked list ig??)  
   
+  pthread_t producerThread[amountProducerFunctionThreads]; 
+  uintptr_t threadRetParam1 = -1;
   
   for(int i = 0; i < amountProducerFunctionThreads; i++) {
-    pthread_t producerThread; 
-    pthread_create(&producerThread, NULL, &producerFunction, NULL); 
+    pthread_create(&producerThread[i], NULL, &producerFunction, NULL); 
   };
 
- for(int i = 0; i < amountConsumerFunctionThreads; i++) {
-    pthread_t consumerThread; 
-    pthread_create(&consumerThread, NULL, &consumerFunction, NULL); 
+  for(int i = 0; i < amountProducerFunctionThreads; i++) {
+    pthread_join(producerThread[i], (void *)(&threadRetParam1));
+  };
+
+  pthread_t consumerThread[amountConsumerFunctionThreads]; 
+
+  for(int i = 0; i < amountConsumerFunctionThreads; i++) {
+    pthread_create(&consumerThread[i], NULL, &consumerFunction, NULL); 
+  };
+
+  for(int i = 0; i < amountConsumerFunctionThreads; i++) {
+    pthread_join(consumerThread[i], (void *)(&threadRetParam1)); 
   };
 
   // Producers produce some elements that the Consumers consume and the program exits.
@@ -230,6 +239,7 @@ void parallelCalc() {
   int timeBeforeRunNanos;
   int timeAfterRunNanos;
 
+  struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   timeBeforeRun = ts.tv_sec;
   timeBeforeRunNanos = ts.tv_nsec;
@@ -275,6 +285,8 @@ void parallelCalc() {
     printf("Thread %d finished after %f seconds and calculated the collatz sequence for the range: %lld-%lld - (%lld iterations)\n", i, ((timeAfterRunThreads[i]+(timeAfterRunThreadsNanos[i]/1e9))-(timeBeforeRunThreads[i]+(timeBeforeRunThreadsNanos[i]/1e9))), currentRange[i].startRange, currentRange[i].endRange, currentRange[i].endRange - currentRange[i].startRange);
 
   }
+
+  printf("\n\nAmount of Nodes in list: %d\nProducer Sum: %lld\nConsumer Sum: %lld\n", currentNodeAmount, producerSum, consumerSum);
 
   clock_gettime(CLOCK_REALTIME, &ts);
   timeAfterRun = ts.tv_sec;
@@ -376,12 +388,12 @@ int main() {
 
   // Sequentiell
 
-  sequentialCalc();  // -- works
+  //sequentialCalc();  // -- works
   
   collatzSum = 0;
 
   // Parallel
-
+  
   parallelCalc(); // time measurment is done on a thread level
   
   printf("\n\nSpeed-up factor: %f\n\n", tSeq/tPar);
@@ -389,7 +401,17 @@ int main() {
 
   printf("\nCollatz-Summe: %llu\n", collatzSum);
 
-  speedupDiagram();
+  //speedupDiagram();
+
+  long long globalExpectedSum = 0;
+
+  for(int i = 0; i < (sizeof(globalRandomNumberArray)/sizeof(globalRandomNumberArray[0])); i++) {
+    globalExpectedSum += globalRandomNumberArray[i];
+    //printf("\nGlobArray[%lld]: %lld\n", i, globalRandomNumberArray[i]);
+    printf("%d + ", globalRandomNumberArray[i]);
+  };
+
+  printf("\n\nExpected Producer/Consumer sum: %lld", globalExpectedSum);
 
   return 0;
 };
