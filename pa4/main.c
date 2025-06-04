@@ -5,6 +5,7 @@
 #include <time.h>
 #include <stdatomic.h>
 #include <semaphore.h>
+#include <unistd.h>
 
 pthread_mutex_t myMutex1 = PTHREAD_MUTEX_INITIALIZER;
 sem_t full;
@@ -49,9 +50,6 @@ node * current = NULL;
 _Atomic long long producerSum = 0;
 _Atomic long long consumerSum = 0;
 
-int globalRandomNumberArray[50];
-int globalRandomNumberArrayIndex = 0;
-
 startWertLaengsteFolgePaarStruct myStartWertLaengsteFolgePaarStruct;
 
 void *threadCalcSpeedup(void *args) {
@@ -68,7 +66,7 @@ void *threadCalcSpeedup(void *args) {
         x = 3 * x + 1;
       }
       collatzFolgenLaenge += 1;
-    } 
+    }; 
 
     atomic_fetch_add(&collatzSum, collatzFolgenLaenge);       // Remove this for non-atomic unsafe add
     //collatzSum += collatzFolgenLaenge;                      // Add this for unsafe add
@@ -101,6 +99,7 @@ void removeTail(node * head) {
   atomic_fetch_sub(&currentNodeAmount, 1);
 
   node * currHead;
+  pthread_mutex_lock(&myMutex1);
   while(head->next != NULL) {
     currHead = head;
     head = head->next;
@@ -108,6 +107,7 @@ void removeTail(node * head) {
 
   head = NULL;
   currHead->next = NULL;
+  pthread_mutex_unlock(&myMutex1);
 
 };
 
@@ -118,30 +118,46 @@ void * producerFunction(void * args) {
   srand(ts.tv_nsec);
   long long randomNumber = 5;
 
-  pthread_mutex_lock(&myMutex1);
-  globalRandomNumberArray[globalRandomNumberArrayIndex] = randomNumber;
-  atomic_fetch_add(&globalRandomNumberArrayIndex, 1);
-  atomic_fetch_add(&producerSum, randomNumber);
-  head = addElementAtStart(head, randomNumber);
-  pthread_mutex_unlock(&myMutex1);
+  int myCounter = 0;
 
-  sem_post(&full);  // Notify consumers
+  // Jeder Producer erzeugt 10000 Zufallszahlen
+  while(1) {
+
+    if(myCounter >= 100) break;
+
+    for(int j = 0; j < 5; j++) {
+      atomic_fetch_add(&producerSum, randomNumber);
+      pthread_mutex_lock(&myMutex1);
+      head = addElementAtStart(head, randomNumber);
+      pthread_mutex_unlock(&myMutex1);
+      sem_post(&full);  // Notify consumers
+    };
+
+    atomic_fetch_add(&myCounter, 5);
+  };
+
 }
 
 
 void * consumerFunction(void * args) {
   sem_wait(&full);  // Wait for an item to be available
 
-  pthread_mutex_lock(&myMutex1);
-
   long long randomNumber;
 
-  randomNumber = head->myInt;
-  head = head->next;
+    //head = head->next;
+  
 
-  atomic_fetch_add(&consumerSum, randomNumber);
-  pthread_mutex_unlock(&myMutex1);
-}
+  while(1) {
+    if(currentNodeAmount > 0) {
+      //printf("\n|%d|\n", currentNodeAmount);
+      atomic_fetch_add(&consumerSum, head->myInt);
+      removeTail(head);
+    } else {
+      break;
+    }
+  }
+  
+};
 
 
 void sequentialCalc() {
@@ -403,15 +419,5 @@ int main() {
 
   //speedupDiagram();
 
-  long long globalExpectedSum = 0;
-
-  for(int i = 0; i < (sizeof(globalRandomNumberArray)/sizeof(globalRandomNumberArray[0])); i++) {
-    globalExpectedSum += globalRandomNumberArray[i];
-    //printf("\nGlobArray[%lld]: %lld\n", i, globalRandomNumberArray[i]);
-    printf("%d + ", globalRandomNumberArray[i]);
-  };
-
-  printf("\n\nExpected Producer/Consumer sum: %lld", globalExpectedSum);
-
-  return 0;
+   return 0;
 };
