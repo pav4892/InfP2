@@ -5,10 +5,10 @@
 #include <time.h>
 #include <stdatomic.h>
 #include <semaphore.h>
-#include <unistd.h>
 
 pthread_mutex_t myMutex1 = PTHREAD_MUTEX_INITIALIZER;
 sem_t full;
+sem_t empty;
 
 // Range of collatz-calculations that should be done
 
@@ -106,6 +106,7 @@ void removeTail(node * head) {
   };
 
   head = NULL;
+  free(head);
   currHead->next = NULL;
   pthread_mutex_unlock(&myMutex1);
 
@@ -116,31 +117,29 @@ void * producerFunction(void * args) {
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts); 
   srand(ts.tv_nsec);
-  long long randomNumber = 5;
+  long long randomNumber = rand() % 1000; // Get a random number and make it less digits because I dont want to deal with overflow shit
 
   int myCounter = 0;
 
-  // Jeder Producer erzeugt 10000 Zufallszahlen
-  while(1) {
+  // Jeder Producer erzeugt 1000 Zufallszahlen
+  for(int j = 0; j < 100; j++) {
 
-    if(myCounter >= 100) break;
+    //sem_wait(&empty);
 
-    for(int j = 0; j < 5; j++) {
-      atomic_fetch_add(&producerSum, randomNumber);
-      pthread_mutex_lock(&myMutex1);
-      head = addElementAtStart(head, randomNumber);
-      pthread_mutex_unlock(&myMutex1);
-      sem_post(&full);  // Notify consumers
-    };
-
-    atomic_fetch_add(&myCounter, 5);
+    atomic_fetch_add(&producerSum, randomNumber);
+    pthread_mutex_lock(&myMutex1);
+    head = addElementAtStart(head, randomNumber);
+    pthread_mutex_unlock(&myMutex1);
+    sem_post(&full);  // Notify consumers
   };
 
-}
+
+  atomic_fetch_add(&myCounter, 5);
+};
 
 
 void * consumerFunction(void * args) {
-  sem_wait(&full);  // Wait for an item to be available
+  sem_wait(&full);  // Wait for avaialable
 
   long long randomNumber;
 
@@ -148,7 +147,9 @@ void * consumerFunction(void * args) {
   
 
   while(1) {
+    //printf("|\n%d|\n", currentNodeAmount);
     if(currentNodeAmount > 0) {
+      sem_post(&empty);
       //printf("\n|%d|\n", currentNodeAmount);
       atomic_fetch_add(&consumerSum, head->myInt);
       removeTail(head);
@@ -396,6 +397,8 @@ void speedupDiagram() {
 };
 
 int main() {
+
+  sem_init(&empty, 0, 5);
 
   // Goal, Calculate Collatz-Folge for every value from 1-100.000.000
   
