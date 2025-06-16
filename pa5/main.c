@@ -26,6 +26,7 @@ typedef struct payloadStruct {
 } payloadStruct;
 
 syncStruct mySyncStruct;
+syncStruct * sharedMemorySpacePointer;
 payloadStruct myPayloadStruct;
 
 void *producerFunction(void *args) {
@@ -34,7 +35,7 @@ void *producerFunction(void *args) {
     ftruncate(sharedMemorySpace , 65535);
 
     // Map the shared memory into the process's address space: here we create a space at address space 0 (or close) of size 65535 bytes with Read and Write, declare it as shared and push the shared space we created before to it
-    syncStruct * sharedMemorySpacePointer = mmap(0, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, sharedMemorySpace, 0);
+    sharedMemorySpacePointer = mmap(0, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, sharedMemorySpace, 0);
 
     sem_init(&mySyncStruct.newWork, 1, 0);   // the second parameter being non-zero means that the semaphore can be used by multiple prozesses not just intern of the thread. Initialized to 0
     sem_init(&mySyncStruct.newResult, 1, 5); // at most 5 elem at a time. Initialized to 5
@@ -43,16 +44,16 @@ void *producerFunction(void *args) {
     //Loop from here, semaphores can be reused indefinetly, payloadOffsetz zahl exponent are updated here and result in the consumer. I think the syncStruct remains at the start of the shared memory space
     
     for(int i = 0; i < iterations; i++) { 
-        mySyncStruct.payloadOffset = 0x1;
+        printf("f\n");
+        mySyncStruct.payloadOffset = 0x00;
         *sharedMemorySpacePointer = mySyncStruct;
+        sem_post(&sharedMemorySpacePointer->newWork);
     };
     
 };
 
 void *consumerFunction(void *args) {
-    while (1) {
-        break;
-    };
+    printf("%d", sharedMemorySpacePointer->payloadOffset);
 };
 
 int main() {
@@ -61,16 +62,12 @@ int main() {
     pthread_t producer;
     pthread_t consumer; 
  
-    for (int i = 0; i < iterations; i++) {
-        pthread_create(&producer, NULL, producerFunction, NULL);
-        pthread_create(&consumer, NULL, consumerFunction, NULL);
-    }
+    pthread_create(&producer, NULL, producerFunction, NULL);
+    pthread_create(&consumer, NULL, consumerFunction, NULL);
 
-    for (int i = 0; i < iterations; i++) {
-        pthread_join(producer, NULL);
-        sem_post(&mySyncStruct.newResult); // Wake up any remaining consumers by incrementing 1 to the internal semaphore counter for all consumers
-        pthread_join(consumer, NULL);
-    }
+    pthread_join(producer, NULL);
+    sem_post(&mySyncStruct.newResult); // Wake up any remaining consumers by incrementing 1 to the internal semaphore counter for all consumers
+    pthread_join(consumer, NULL);
 
     // Cleanup stuff
     sem_destroy(&mySyncStruct.newResult);
